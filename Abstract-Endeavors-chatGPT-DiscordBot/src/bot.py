@@ -6,9 +6,31 @@ from typing import Optional
 import openai
 import json
 from asgiref.sync import sync_to_async
+import random
 logger = log.setup_logger(__name__)
 config = responses.get_config()
 isPrivate = False
+def getRndmNum():
+  return random.random()
+def getRndmNumRa(i,k):
+  return random.randint(i,k)
+def getRndmNumLs(ls):
+  return getRndmNumRa(0,len(ls))
+def getContRndmLs(ls):
+  return getRndmNumRa(getRndmNumLs(ls),len(ls))
+def getChaosNumLs(ls):
+  return ls[getContRndmLs(ls)]
+def ifSingleMkRa(ls):
+  ls = mkLs(ls)
+  if len(ls) == 0:
+    return [0,getRndmNum()]
+  if len(ls) == 1:
+    return [0,ls[0]]
+  return ls
+def rndmFloatRa(ls,exp):
+  if len(ls) == 1:
+    ls = ifSingleMkRa(ls)
+  return float(getRndmNumRa(ls[0]*exp,ls[1]*exp))/float(10)
 def changeGlob(x,v):
     globals()[x] = v
 def retNums():
@@ -46,6 +68,27 @@ def mkLsLs(ls):
   for i in range(0,len(ls)):
     lsN.append(mkLs(ls[i]))
   return lsN
+def mkInt(i):
+  if isNum(ls) == False:
+    return False
+  return int(i)
+def mkFloat(k):
+  if isNum(ls) == False:
+    return False
+  return float(k)
+def mkIntOrFloat(k):
+    if isNum(k):
+        if '.' in str(k):
+            return mkFloat(k)
+        return mkInt(k)
+    return False
+def matchNumType(k,k2):
+    k = mkIntOrFloat(k)
+    if isFloat(k):
+        return mkFloat(k2)
+    if isInt(k):
+        return mkInt(k2)
+    return k
 def sendLogInfo(x,y):
   logger.info(createDispPrompt(x,y))
 def ifLenThenRetVal(x,k,st):
@@ -181,12 +224,82 @@ async def send_start_prompt(client):
             logger.info(f"No {prompt_name}. Skip sending starting prompt.")
     except Exception as e:
         logger.exception(f"Error while sending starting prompt: {e}")
+def getC(ls,x):
+    if len(ls) == 0:
+        return ''
+    return x
+def getCls(ls,i,lsN):
+    if k == 0:
+        return ''
+    if len(ls)-i == 1:
+        return lsN[1]
+    return lsN[0]
+def addIt(k,i):
+    k = mkIntOrFloat(k)
+    if k == False:
+        return False
+    return k+matchNumType(k,i)
+def createNumStrLs(n,ls,l):
+    k = 0
+    for i in range(0,len(ls)):
+        if ls[i] != None:
+            k = addIt(k,1)
+            n = n + getCls(ls,i, [', ',' and '])+str(k)+'. '+ls[i]
+    if n[-1] != ':':
+        n = n + ':'
+    return n
+def addLines(ls):
+    n = ''
+    for i in range(0,len(ls)):
+        n = n +getC(ls,'\n\n')+ str(ls[i])
+    return n
+def subFence(x):
+    while ' ,' in x:
+        x = x.replace(' ,',',')
+    while ', ' in x:
+        x = x.replace(', ',',')
+    while ' ' in x[-1]:
+        x = x[:-1]
+    while ' ' in x[0]:
+        x = x[1:]
+    return '| '+x.replace(',',' | ')+' |'
+def ifVarExists(var):
+    try:
+        var
+        return True
+    except NameError:
+        return False
+def ifFgo(x):
+    if x == False:
+        return True
+    return False
+def msgit(client,k):
+    from discord.ext import commands
+
+    client = commands.Bot(command_prefix=">",intents=discord.Intents.default())
+
+    @client.event    
+    async def on_message(message):
+        for x in message.mentions:
+            if(x==client.user):
+                await message.channel.send(f":sauropod: did someone mention me?")
+
+        await client.process_commands(message)        
+def parseIt(client,k):
+    if comms[k] == 'parse':
+      @isDesc(client,k)
+      async def parse(interaction: discord.Interaction, *,top_p: Optional[int],temperature: Optional[int],summarize: str,subjects:str,data:str):
+        if interaction.user != client.user:
+            if summarize[-1] != ':':
+                summarize = summarize+':'
+            print(addLines([summarize+':',subFence(subjects),data]))
+            await send_message(interaction, getIntyeraction(interaction,top_p,temperature,addLines([summarize,subFence(subjects),data]),k))
 def transIt(client,k):
     if comms[k] == 'trans':
       @isDesc(client,k)
-      async def trans(interaction: discord.Interaction, *,top_p: Optional[int],temperature: Optional[int], text:str,target_language: str):
+      async def trans(interaction: discord.Interaction, *,top_p: Optional[int],temperature: Optional[int], text:str,target_languagea: str,target_languageb: Optional[str],target_languagec: Optional[str]):
         if interaction.user != client.user:
-            await send_message(interaction, getIntyeraction(interaction,top_p,temperature,"/n translate :"+text+'\nto '+target_language,k))
+            await send_message(interaction, getIntyeraction(interaction,top_p,temperature,createNumStrLs('\nTranslate this into  ',[target_languagea,target_languageb,target_languagec],':\n\n'),k))
 def qaIt(client,k):
     if comms[k] == 'qanda':
       @isDesc(client,k)
@@ -205,6 +318,7 @@ def chatIt(client,k):
       async def chat(interaction: discord.Interaction, *,top_p: Optional[int],temperature: Optional[int], message: str):
           if interaction.user != client.user:
             await send_message(interaction, getIntyeraction(interaction,top_p,temperature,message,k))
+          
 def imgIt(client,k):
     if comms[k] == 'image':
       @isDesc(client,k)
@@ -255,6 +369,8 @@ def asit(client,k):
       helpIt(client,k)
       qaIt(client,k)
       transIt(client,k)
+      parseIt(client,k)
+      msgit(client,k)
 def run_discord_bot():
     client = aclient()
     @client.event
@@ -262,19 +378,35 @@ def run_discord_bot():
         await send_start_prompt(client)
         await client.tree.sync()
         logger.info(f'{client.user} is now running!')
+    @client.event
+    async def on_message(message):
+            print(discord.Interaction)
+            if client.user.mentioned_in(message):
+                response = '> **' + message.content + '** - <@' + \
+                str(message.author) + '>\n\n'
+                response = f"{response}{message.content}{await responses.handle_response(message.content,defaults['random'])}"
+                response = await responses.handle_response(message.content,defaults['random'])
+                lsN = chopItUp(response)
+                for i in range(0,len(lsN)):
+                    print(lsN[i])
+                    await message.channel.send(lsN[i])#message.channel.send(lsN[i])
     for i in range(0,len(comms)):
       asit(client,i)
     TOKEN = config['discord_bot_token']
     client.run(TOKEN)
 global optimizations,comms,descs,send_defs
 optimizations = {'configs':['temperatures', 'lengths', 'top_p', 'frequency', 'presence_penalty', 'best_of', 'models'],
-                 'commandNames':['code','chat','image','public','private','help','qanda','trans'],
-                'settings':{'temperature':[0,1],'max_tokens':[1,2048],'top_p':[0,1],'frequency':[0,2],'presence_penalty':[0,2],'best_of':[0,1],'frequency':[0,20]},'models':{'code':['code-cushman-001','code-davinci-002'],'chat':['text-ada-001','text-davinci-003','text-curie-001','text-babbage-001']},
+                 'commandNames':['code','chat','image','public','private','help','qanda','trans','parse','mention','random'],
+                'settings':{'size':['256x256','512x512','1024x1024'],'n':[1,10],'temperature':[0,1],'max_tokens':[1,2048],'top_p':[0,1],'frequency':[0,2],'presence_penalty':[-2,2],'best_of':[0,1],'frequency_penalty':[-2,2]},'models':{'code':['code-cushman-001','code-davinci-002'],'chat':['text-ada-001','text-davinci-003','text-curie-001','text-babbage-001'],'edit':['text-davinci-edit-001']}
                 'defaults':{
+                'random':{'type':'random','model':['text-ada-001','text-davinci-003','text-curie-001','text-babbage-001'][getRndmNumRa(0,3)],'temperature':rndmFloatRa([0,1],10),'max_tokens':2000,'top_p':rndmFloatRa([0,1],10),'frequency':rndmFloatRa([0,2],10),'presence_penalty':rndmFloatRa([0,2],10),'best_of':rndmFloatRa([0,1],10),'frequency':rndmFloatRa([0,20],10)},
                 'image':{'type':'image','size':'1024x1024','temperature':0.7,'n':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2048},
                 'code':{'type':'code','model':'code-cushman-001','temperature':0.7,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2000},
                 'chat':{'type':'chat','model':'text-davinci-003','temperature':0.7,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2048},
+                'mention':{'mention':'chat','model':'text-davinci-003','temperature':0.7,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2048},
                 'qanda':{'type':'qanda','model':'text-davinci-003','temperature':0,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':100},
-                'trans':{'type':'trans','model':'text-davinci-003','temperature':0.7,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2048}},
-                'descriptions':{'code':"Write Some Code",'chat':"Have a chat with ChatGPT",'image':"get image from a description",'public':"Toggle public access",'private':"Toggle private access",'help':"Show help for the bot",'temp':'pick the randomness of your interaction','qanda':'questions and answers','trans':'translate one language to another'}}
+                'parse':{'type':'parse','model':'text-davinci-003','temperature':0,'best_of':0,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':100},
+                'trans':{'type':'trans','model':'text-davinci-003','temperature':0.7,'best_of':1,'top_p':1,'frequency_penalty':0,'presence_penalty':0,'max_tokens':2048}
+                },
+                'descriptions':{'random':'randomized interaction','mention':'mentions the bot','code':"Write Some Code",'chat':"Have a chat with ChatGPT",'image':"get image from a description",'public':"Toggle public access",'private':"Toggle private access",'help':"Show help for the bot",'temp':'Temperature will allow you to pick the randomness of your interaction; range(0:2) - input(integer) i.e. 15 will transate to 1.5','qanda':'questions and answers','trans':'translate one language to another','parse':'[summerize] -" a table summarizing fruits from Goocrux";[subjects] -"Fruit,Color,Flavor"'}}
 defaults,comms,descs,send_defs = optimizations['defaults'],optimizations['commandNames'],optimizations['descriptions'],'chat'
