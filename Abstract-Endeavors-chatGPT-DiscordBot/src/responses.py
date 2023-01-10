@@ -13,19 +13,34 @@ def get_config() -> dict:
 config = get_config()
 openai.api_key = config['openAI_key']
 async def handle_response(message,defs) -> str:
-    if defs['type'] == 'image':        
+    if defs['spec'] == 'image':        
         response = await sync_to_async(openai.Image.create)(prompt=message,n=1,size="1024x1024")
         return response['data'][0]['url']
-    
-    response = await sync_to_async(openai.Completion.create)(
+    if defs['spec'] == 'edit':
+        response = await sync_to_async(openai.Edit.create)(
         model=defs['model'],
-        prompt=message,
+        input="",
+        instruction="",
         temperature=defs['temperature'],
-        max_tokens=defs['max_tokens'],
-        top_p=defs['top_p'],
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-    )
-    print(len(response),response)
-    print(len(response.choices[0].text),response.choices[0].text)
-    return response.choices[0].text
+        top_p=defs['top_p'])
+        return response.choices[0].text
+    if defs['spec'] == 'completion':
+        response = openai.Completion.create(
+          model="text-davinci-003",
+          prompt="",
+          temperature=0,
+          max_tokens=60,
+          top_p=1,
+          frequency_penalty=0.5,
+          presence_penalty=0)
+    else:
+        response = await sync_to_async(openai.Completion.create)(
+            model=defs['model'],
+            prompt=message,
+            temperature=defs['temperature'],
+            max_tokens=defs['max_tokens'],
+            top_p=defs['top_p'],
+            frequency_penalty=0.0,
+            presence_penalty=0.0)
+        return response.choices[0].text
+    
