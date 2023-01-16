@@ -1,0 +1,171 @@
+def getAllOut(x):
+  n = ''
+  z = ''
+  ins = True
+  num = 'highlighter-line-number'
+  for i in range(0,len(x)):
+    if x[i] == '<':
+      ins = True
+      z = ''
+    elif x[i] == '>':
+      ins = False
+    elif ins == False:
+      if num not in z:
+        n = n + x[i]
+    elif ins == True:
+      z = z + x[i]
+  return n
+def findIt(ls,x):
+  for i in range(0,len(ls)):
+    if ls[i] in x:
+      return ls[i]
+  return False
+def findItInt(ls,x):
+  for i in range(0,len(ls)):
+    if x == ls[i]:
+      return i
+  return False
+def countDivs(x):
+  opCl = [0,0]
+  z = ''
+  open = x.split(' ')[0]+' '
+  close = open[:-1].replace('<','</')+'>'
+  divLs = [open,close]
+  for i in range(0,len(x)):
+    z = z + x[i]
+    divNow = ifInIt(divLs,z)
+    if divNow != False:
+      opCl[findItInt(divLs,divNow)] +=1
+    if opCl[0] == opCl[1] and opCl[0] != 0:
+      return z
+  return x
+def ifInIt(ls,x):
+  for i in range(0,len(ls)):
+    if x[-len(ls[i]):] == ls[i]:
+      return ls[i]
+  return False
+def ifInItFor(ls,x):
+  for i in range(0,len(ls)):
+    if x[:len(ls[i])] == ls[i]:
+      return ls[i]
+  return False
+def lsInStr(ls,st):
+  for i in range(0,len(ls)):
+    if ls[i] in st:
+      return ls[i]
+  return False
+def mkLs(ls):
+  if type(ls) is not list:
+    ls = [ls]
+  return ls
+def getAllOutLs(x):
+  n = ''
+  z = x
+  ls = ['']
+  ins = True
+  fou = False
+  typeLs = ['<div class="param-name','<div class="param-type','<div class="param-optl','<div class="param-req','<div class="param-default','<div class="param-row-body']
+  typeJs = {typeLs[0]:'name',typeLs[1]:'type',typeLs[2]:'opt',typeLs[3]:'opt',typeLs[4]:'default',typeLs[5]:'description'}
+  js = {'name':'','type':'','baseType':'text','opt':'','default':'','description':'','choices':{'type':'none','options':[]}}
+  for i in range(0,len(x)):
+    n = n + x[i]
+    z = x[i:]
+    isIn = ifInItFor(typeLs,z)
+    if isIn != False:
+      js[typeJs[isIn]] = getAllOut(countDivs(z)).replace("'",'')
+      listRange = ['Must be one of','Must be between','Number between']
+      for k in range(0,len(listRange)):
+        if listRange[k] in js['description']:
+          sample = js['description'].split(listRange[k])[1].split('. ')[0]
+          if '.' == sample[-1]:
+            sample = sample[:-1]
+          spl = mkLs(sample.split(','))
+          for c in range(0,len(spl)):
+            isIn = lsInStr(['and','or'],spl[c])
+            if isIn != False:
+              if isIn == 'and':
+                js['choices']['type'] = 'range'
+              if isIn == 'or':
+                js['choices']['type'] = 'choice'
+              spl2 = spl[c].replace(' ','').split(isIn)
+              if '' in spl2:
+                spl2.remove('')
+              for l in range(0,len(spl2)):
+                js['choices']['options'].append(spl2[l])
+            else:
+              js['choices']['options'].append(spl[c].replace(' ',''))
+            print(js)
+      fou = js
+  if js['name'] in ['image','mask','file']:
+    js['baseType'] = 'file'  
+  return fou
+def ma():
+  if x[i] == '<':
+    ins = True
+    found = findIt(typeLs,z)
+    if found != False:
+        js[typeJs[found]] = countDivs(z)
+        n = ''
+        z = ''
+        fou = js
+    elif x[i] == '>':
+      ins = False
+    elif ins == False:
+      n = n + x[i]
+    elif ins == True:
+      z = z +x[i]
+  if 'markdown-content">' in x:
+    js['default'] = getAllOut(x.split('markdown-content">')[1].split('</div>')[0])
+    fou = js
+  return fou
+def pen(x,p):
+    with open(p, 'w',encoding='UTF-8') as f:
+        return f.write(str(x))
+def getParam(ls):
+  js = {'all':[]}
+  for i in range(0,len(ls)):
+    info = getAllOutLs(ls[i])
+    if info != False:
+      js['all'].append(info['name'])
+      js[info['name']] = info
+  return js
+
+def getCode(x):
+  pyCode = '<div class="code-sample-body code-sample-body-small"><pre class="hljs syntax-highlighter dark code-sample-pre"><code class="language-python" style="white-space: pre;">'
+  if pyCode in stri[i]:
+    return getAllOut(stri[i].split(pyCode)[1].split('</code></pre></div>')[0])
+stri = open('html.txt','r').read().split('<a class="anchor-heading-link" href="/docs/api-reference/')
+beg = '<option value="'
+mid = '">'
+end = '</option>'
+js = {}
+for i in range(0,len(stri)):
+  if '"><h2' in stri[i]:
+    title = stri[i].split('"><h2')[0]
+    if title not in js and title.split('/')[0] not in js:
+      js[title.split('/')[0]] = {'sections':[]}
+    if '/' in title:
+      if title.split('/')[0] in js:
+        js[title.split('/')[0]]['sections'].append(title.split('/')[1])
+        js[title.split('/')[0]][title.split('/')[1]] = {'sync':'','code':[],'models':[],'params':''}
+    if '<div class="param-section">' in stri[i]:
+      paramSect = stri[i].split('<div class="param-section">')[1]
+      js[title.split('/')[0]][title.split('/')[1]]['params'] = getParam(paramSect.split('<div class="param-row api-ref-anchor-link-hover">'))
+    if '<div class="code-sample">' in stri[i]:
+      codeSamp = stri[i].split('<div class="code-sample">')[1]
+      if beg in codeSamp:
+        codeLine = codeSamp.split(beg)
+        for k in range(1,len(codeLine)):
+          line = codeLine[k]
+          one = line.split(mid)[0]
+          if one not in ['curl', 'python', 'node.js']:
+            js[title.split('/')[0]][title.split('/')[1]]['models'].append(one)
+    pyCode = '<div class="code-sample-body code-sample-body-small"><pre class="hljs syntax-highlighter dark code-sample-pre"><code class="language-python" style="white-space: pre;">'
+    if pyCode in stri[i]:
+      code = getAllOut(stri[i].split(pyCode)[1].split('</code></pre></div>')[0])
+      js[title.split('/')[0]][title.split('/')[1]]['code'] = code
+      js[title.split('/')[0]][title.split('/')[1]]['sync'] = code.split('os.getenv("OPENAI_API_KEY")\n')[1].split('(')[0]
+      
+pen(js,'promptDetJson.json')
+print(js)
+
