@@ -1,0 +1,45 @@
+import os
+import openai
+def download_from_youtube(url):
+    try:
+        ydl_opts = {}
+        os.chdir(r"C:\Users\User\Desktop\video_files")
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        print("success")
+    except:
+        print("fail")
+
+def upload_file(path):
+    print("uploading")
+    f = open(path, "r")
+[3:13 PM]
+texts = f.readlines()
+    f.close()
+    text=""
+    for line in texts:
+        text += line
+    return text
+
+def call_open_ai(text):
+    parameters = {
+        "prompt": text,
+        "length": 100,
+        "max_tokens": 300,
+        "temperature": 0.7,
+        "top_p": 0.9
+    }
+    response = requests.get("https://api.openai.com/v1/engines/davinci/completions", params=parameters,
+                            headers={"Authorization": ""})
+    data = response.json()
+    print("success")
+    return data["choices"][0]["text"]
+
+
+if name == "main":
+    url = input("please enter the youtube url: ")
+    download_from_youtube(url)
+    path = input("please enter the file path: ")
+    text = upload_file(path)
+    response= call_open_ai(text)
+    print("response is: "+response)
